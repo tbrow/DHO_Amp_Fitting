@@ -8,6 +8,7 @@ This code is for fitting the Amplitude response to sinusoidal forcing of a dampe
 Designed for .csv files containing multiple tunes over the same frequency range
 Application: Atomic force microscopy
 """
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -19,9 +20,9 @@ def SHO(f, fo, Adrive, Q):
     return fo**2*Adrive/np.sqrt((fo**2-f**2)**2+(fo*f/Q)**2)
 
 files=glob.glob('*.csv')
-
-for filename in files:
-    alldata = pd.read_csv(filename)
+AllCoeffs=[1]*len(files)
+for filename in range(len(files)):
+    alldata = pd.read_csv(files[filename])
     minFreq = 40000
     maxFreq = 80000
     alldata = alldata[alldata.iloc[:, 0] >= minFreq]
@@ -30,15 +31,35 @@ for filename in files:
     AmpData = alldata.filter(like='Amp', axis = 1)
     plt.semilogy(FreqData, AmpData)
     
-    z = 0
-    for col in AmpData.columns:
-        ydata = AmpData.values[:, z]
-        z += 1
-        popt, pcov = curve_fit(SHO, FreqData, ydata, p0=[60000, .01, 10])
-        
+    coeffs=pd.DataFrame() 
+    
+    for col in range(len(AmpData.columns)):
+        ydata = AmpData.values[:, col]
+        popt, pcov = curve_fit(SHO, FreqData, ydata, p0=[60000, .005, 10])
+        coeffs=pd.concat([coeffs, pd.DataFrame(popt)], axis=1)
         plt.semilogy(FreqData, SHO(FreqData, *popt),':')
+        
+        
     plt.xlabel('Frequency')
     plt.ylabel('Amplitude')
-    plt.title(filename)
+    plt.title(files[filename])
     plt.show()
     
+    coeffs.index=['fo','Adrive','Q']
+    coeffs.columns = list(AmpData.columns)
+#    print(coeffs)
+    AllCoeffs[filename] = coeffs
+
+for x in range(len(files)):
+    a=AllCoeffs[x].T
+    Qs=a.Q[a.Q<100].sort_values(ascending=False)
+    
+    d = [0]*len(Qs)
+    for depth in range(len(Qs)):
+        d[depth] = (depth+1)*100
+        
+    plt.plot(d,1/Qs)
+    plt.xlabel('Insertion Length [nm]')
+    plt.ylabel('1/Q')
+    
+
