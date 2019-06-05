@@ -21,10 +21,10 @@ def SHO(f, fo, Adrive, Q):
 
 files=glob.glob('*.csv')
 AllCoeffs=[1]*len(files)
-for filename in range(len(files)):
-    alldata = pd.read_csv(files[filename])
-    minFreq = 40000
-    maxFreq = 80000
+for filenumber in range(len(files)):
+    alldata = pd.read_csv(files[filenumber])
+    minFreq = 35000
+    maxFreq = 90000
     alldata = alldata[alldata.iloc[:, 0] >= minFreq]
     alldata = alldata[alldata.iloc[:, 0] <= maxFreq]
     FreqData = alldata.iloc[:, 0]
@@ -35,31 +35,33 @@ for filename in range(len(files)):
     
     for col in range(len(AmpData.columns)):
         ydata = AmpData.values[:, col]
-        popt, pcov = curve_fit(SHO, FreqData, ydata, p0=[60000, .005, 10])
+        popt, pcov = curve_fit(SHO, FreqData, ydata, p0=[60000, .005, 5])
         coeffs=pd.concat([coeffs, pd.DataFrame(popt)], axis=1)
         plt.semilogy(FreqData, SHO(FreqData, *popt),':')
         
         
     plt.xlabel('Frequency')
     plt.ylabel('Amplitude')
-    plt.title(files[filename])
+    plt.title(files[filenumber])
     plt.show()
     
     coeffs.index=['fo','Adrive','Q']
     coeffs.columns = list(AmpData.columns)
-#    print(coeffs)
-    AllCoeffs[filename] = coeffs
+    AllCoeffs[filenumber] = coeffs
 
-for x in range(len(files)):
-    a=AllCoeffs[x].T
-    Qs=a.Q[a.Q<100].sort_values(ascending=False)
-    
-    d = [0]*len(Qs)
-    for depth in range(len(Qs)):
-        d[depth] = (depth+1)*100
+for filenumber in range(len(files)):
+    a=AllCoeffs[filenumber].T
+    Qs=a.Q[a.Q<100].sort_values(ascending=False) # Remove the free resonance peak and sort from the droplet surface
+            
+    d = list(range(100,100*len(Qs)+100, 100)) # for 100 nm steps and starting point
         
+    k = 2.15 # N/m
+    Amp = 5 # nm
+    print(files[filenumber], '; peak force at 500 nm = ', k/Qs[4]*Amp, ' nN')    
+    print(files[filenumber], '; peak force at 1000 nm = ', k/Qs[9]*Amp, ' nN')  
     plt.plot(d,1/Qs)
     plt.xlabel('Insertion Length [nm]')
     plt.ylabel('1/Q')
+    plt.legend(list(files))
     
 
