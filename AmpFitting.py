@@ -19,23 +19,25 @@ import glob
 def SHO(f, fo, Adrive, Q):
     return fo**2*Adrive/np.sqrt((fo**2-f**2)**2+(fo*f/Q)**2)
 
-files=glob.glob('./AggregatedViscData/*/*NN8*.csv')
+files=glob.glob('./AggregatedViscData/190710/NN_N100_2.csv')
 AllCoeffs=[1]*len(files)
 for filenumber in range(len(files)):
     alldata = pd.read_csv(files[filenumber])
-    minFreq = 45000
-    maxFreq = 65000
+    minFreq = 50000
+    maxFreq = 70000
     alldata = alldata[alldata.iloc[:, 0] >= minFreq]
     alldata = alldata[alldata.iloc[:, 0] <= maxFreq]
     FreqData = alldata.iloc[:, 0]
     AmpData = alldata.filter(like='AmpV', axis = 1)
+    AmpData=AmpData[AmpData.columns[:-1]] #drop last column (air)
     plt.semilogy(FreqData, AmpData)
     
     coeffs=pd.DataFrame() 
-    pnext = [55000, 0.005, 10]
-    for col in range(len(AmpData.columns)):
+    pnext = [60000, 0.005, 2]
+    for col in reversed(range(len(AmpData.columns))): #fit the higher Q peaks first
+
         ydata = AmpData.values[:, col]
-        popt, pcov = curve_fit(SHO, FreqData, ydata, p0=pnext)
+        popt, pcov = curve_fit(SHO, FreqData, ydata, p0=pnext, method='trf')
         coeffs=pd.concat([coeffs, pd.DataFrame(popt)], axis=1)
         plt.semilogy(FreqData, SHO(FreqData, *popt),':')
         pnext = popt #reuse the fitted parms as the initial guess for the next curve
@@ -44,19 +46,18 @@ for filenumber in range(len(files)):
     plt.xlabel('Frequency [Hz]')
     plt.ylabel('Amplitude [V - arb.]')
     plt.title(files[filenumber])
+    plt.savefig('./figures/NN_N100_Amp.png',dpi=300)
     plt.show()
     
     
     coeffs.index=['fo','Adrive','Q']
     coeffs.columns = list(AmpData.columns)
     AllCoeffs[filenumber] = coeffs
-#plt.show()
   
 allQ = pd.DataFrame()    
     
 for filenumber in range(len(files)):
-    a=AllCoeffs[filenumber].T
-    Qs=a.Q[a.Q<100].iloc[::-1] # Remove the free resonance trace (Q>100) and flip to sort from the droplet surface
+    Qs=AllCoeffs[filenumber].iloc[2]
     allQ = pd.concat([allQ,Qs], axis = 1)        
     d = list(range(100,100*len(Qs)+100, 100)) # for 100 nm steps and starting point
         
@@ -68,5 +69,5 @@ for filenumber in range(len(files)):
     plt.xlabel('Insertion Length [nm]')
     plt.ylabel('1/Q')
 #    plt.legend(list(files))
-#plt.savefig('NN_N10.png',dpi=300)
+#plt.savefig('./figures/CFM_N100.png',dpi=300)
 
